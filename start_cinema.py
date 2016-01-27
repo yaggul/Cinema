@@ -6,10 +6,10 @@ def main():
     db.create_tables()
     print(db.show_movies())
     print(db.show_movie_projections())
-    # con = sqlite3.connect('/media/kromm/DATA/code/Cinema/cinema.db')
-    # cur = con.cursor()
-    # cur.execute('select name,rating from movies order by rating')
-    # a = cur.fetchall()
-    # print(a)
+    print(db.show_movie_projections_and_seats(2))
+    db.gen_seats_matrix()
+    db.get_reserved_seats(3)
+    print(db.available_seats())
+
 if __name__ == '__main__':
     main()

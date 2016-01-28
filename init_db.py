@@ -1,23 +1,19 @@
 import sqlite3
 from prettytable import PrettyTable as pt
 
-
-class OutOfRange(Exception):
-    pass
+from cinema_exceptions import *
 
 
 class DBinit:
     def __init__(self):
         self.con = sqlite3.connect('/media/kromm/DATA/code/Cinema/cinema.db')
-        # self.con.cursor = cur
         self.movies_data = []
         self.projections_data = []
         self.reservations_data = []
         self.seats_matrix = []
-        self.seats_string = ''
         self.reservation_user_name = ''
-        self.reservation_movie_id = ''
-        self.reservation_projection_id = ''
+        self.reservation_movie_id = 0
+        self.reservation_projection_id = 0
         self.reservation_tickets_count = 0
         self.reservation_tickets = []
 
@@ -53,15 +49,15 @@ FOREIGN KEY (MOVIE_ID) REFERENCES MOVIES (ID))
         '''
         print all movies ORDERED BY rating desc
         '''
-        movies_header = ['ID', 'Name', 'Rating']
-        tbl = pt(movies_header)
+        tbl_header = ['ID', 'Name', 'Rating']
+        tbl = pt(tbl_header)
         tbl.align['Name'] = 'l'
         tbl.align['Rating'] = 'l'
         cur = self.con.cursor()
         cur.execute("select * from movies order by rating desc")
         for i in cur.fetchall():
             tbl.add_row(i)
-        return "Current movies:\n" + str(tbl)
+        return "\nCurrent movies:\n" + str(tbl)
 
     def show_movie_projections(self, **kwargs):
         '''
@@ -84,61 +80,94 @@ FOREIGN KEY (MOVIE_ID) REFERENCES MOVIES (ID))
                 result = cur.fetchall()
                 for i in result:
                     tbl.add_row([i[1], ])
-                return "Projections for movie '{}':\n".format(result[0][0]) + str(tbl)
+                return "\nProjections for movie '{}':\n".format(result[0][0]) + str(tbl)
             else:
                 cur.execute(movie_and_date_sql, (kwargs['movie_id'], kwargs['date']))
                 result = cur.fetchall()
                 for i in result:
                     tbl.add_row([i[2], ])
-                return "Projections for movie '{}' on date {}:\n".format(
+                return "\nProjections for movie '{}' on date {}:\n".format(
                     result[0][0], result[0][1]) + str(tbl)
         except (IndexError, KeyError):
-            return 'Wrong command. Type help for list of supported commands \
+            return '\nWrong command. Type help for list of supported commands \
 and parameters'
 
     def make_reservations(self):
-        pass
+        self.choose_user()
+        self.choose_ticket_count()
+        print(self.show_movies())
+        self.choose_movie_id()
+        print(self.show_movie_projections_and_seats(self.reservation_movie_id))
+        self.choose_projection_id()
+        print(self.available_seats())
+        self.choose_seats(self.reservation_projection_id)
+        print(self.return_reservation_recap())
+        self.finalize_reservation()
 
     def choose_user(self):
         self.reservation_user_name = ''
         while self.reservation_user_name == '':
-            self.reservation_user_name = input('Step 1 (User): Choose name> ')
+            try:
+                self.reservation_user_name = input('Step 1 (User): Choose name> ')
+            except KeyboardInterrupt:
+                self.cancel_reservation()
+                self.con.close()
+                print('\n\nBuy, Buy')
+                quit()
 
     def choose_ticket_count(self):
-        self.reservation_tickets = 0
-        while self.reservation_tickets == 0:
+        self.reservation_tickets_count = 0
+        while self.reservation_tickets_count == 0:
             try:
-                self.reservation_tickets = int(input(
-                    'Step 1 (User): Choose number of tickets > '))
-                if self.reservation_tickets not in range(0, 101):
+                self.reservation_tickets_count = int(input(
+                    '\nStep 1 (User): Choose number of tickets > '))
+                if self.reservation_tickets_count not in range(1, 100):
                     raise OutOfRange
             except (ValueError, OutOfRange):
-                print('You have entered invalid number. Range (1-100)')
+                print('''\nThere are only {0} free tickets. Please enter a
+                    number between 1 and 100''')
+            except KeyboardInterrupt:
+                self.cancel_reservation()
+                self.con.close()
+                print('\n\nBuy, Buy')
+                quit()
 
-        def choose_movie_id(self):
-            self.reservation_movie_id = 0
-            while self.reservation_movie_id == 0:
-                try:
-                    self.reservation_movie_id == int(input(
-                        'Step 2 (Movie): Choose a movie> '))
-                    if self.reservation_movie_id not in self.show_movie_ids():
-                        raise OutOfRange
-                except (ValueError, OutOfRange):
-                    print('We need a number between 1 and {}'.format(
-                        self.show_movie_ids()[-1]))
+    def choose_movie_id(self):
+        self.reservation_movie_id = 0
+        m_ids = self.show_movie_ids()
+        while self.reservation_movie_id not in m_ids:
+            try:
+                self.reservation_movie_id = int(input(
+                    '\nStep 2 (Movie): Choose a movie> '))
+                if self.reservation_movie_id not in m_ids:
+                    raise OutOfRange
+                else:
+                    pass
+            except (ValueError, OutOfRange):
+                print('\nWe need a number between 1 and {}'.format(
+                    self.show_movie_ids()[-1] + 1))
+            except KeyboardInterrupt:
+                self.cancel_reservation()
+                self.con.close()
+                print('\n\nBuy, Buy')
+                quit()
 
-        def choose_projection_id(self):
-            self.reservation_projection_id = ''
-            print(self.show_movies())
-            while self.reservation_projection_id == 0:
-                try:
-                    self.reservation_projection_id == int(input(
-                        'Step 3 (Projection): Choose a projection> '))
-                    if self.reservation_projection_id not in self.show_projection_ids():
-                        raise OutOfRange
-                except (ValueError, OutOfRange):
-                    print('Allowed choice {}'.format(
-                        self.show_projection_ids()))
+    def choose_projection_id(self):
+        self.reservation_projection_id = 0
+        p_ids = self.show_projection_ids(self.reservation_movie_id)
+        while self.reservation_projection_id not in p_ids:
+            try:
+                self.reservation_projection_id = int(input(
+                    '\nStep 3 (Projection): Choose a projection> '))
+                if self.reservation_projection_id not in p_ids:
+                    raise OutOfRange
+            except (ValueError, OutOfRange):
+                print('\nAllowed choices {}'.format(p_ids))
+            except KeyboardInterrupt:
+                self.cancel_reservation()
+                self.con.slose()
+                print('\n\nBuy, Buy')
+                quit()
 
     def show_movie_projections_and_seats(self, movie_id):
         tbl_headers = ['Projection info']
@@ -159,12 +188,17 @@ and parameters'
         result = cur.fetchall()
         for i in result:
             tbl.add_row([i[1]])
-        return "Projections for movie '{}':\n".format(
+        return "\nProjections for movie '{}':\n".format(
             result[0][0]) + str(tbl)
 
     def available_seats(self):
+        self.gen_seats_matrix()
         tbl_headers = ['', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
         tbl = pt(tbl_headers)
+        tbl.align[''] = 'r'
+        r_seats = self.return_reserved_seats(self.reservation_projection_id)
+        for seat in r_seats:
+            self.seats_matrix[seat[0]-1][seat[1]-1] = 'X'
         row_num = [1]
         for i in self.seats_matrix:
             tbl.add_row(row_num + i)
@@ -182,59 +216,134 @@ and parameters'
         where projection_id=?
         '''
         cur.execute(sql, (proj_id, ))
-        r_seats = cur.fetchall()
-        for seat in r_seats:
-            self.seats_matrix[seat[0]][seat[1]] = 'X'
+        result = cur.fetchall()
+        return result
 
     def show_projection_ids(self, movie_id):
         cur = self.con.cursor()
-        cur.execute('select projection_id from projections where movie_id=?', (movie_id, ))
+        cur.execute('select id from projections where movie_id=?', (movie_id, ))
         p_ids = [i[0] for i in cur.fetchall()]
         return p_ids
 
     def show_movie_ids(self):
         cur = self.con.cursor()
-        cur.execute('select id fom movies')
+        cur.execute('select id from movies')
         m_ids = [i[0] for i in cur.fetchall()]
         return m_ids
 
     def choose_seats(self, proj_id):
-        cur = self.con.cursor()
-        sql = '''SELECT r.row, r.col as r_seats
-        from reservations r
-        where projection_id=?
-        '''
-        cur.execute(sql, (proj_id, ))
-        r_seats = cur.fetchall()
-        self.reservation_tickets_count = 0
+        r_seats = self.return_reserved_seats(proj_id)
         self.reservation_tickets = []
-        while self.reservation_tickets_count == 0:
-            try:
-                self.reservation_tickets_count = int(input("Step 4 (Seats): Choose ticket count> "))
-                tc = 100 - len(r_seats)
-                if self.reservation_tickets_count > tc:
-                    raise OutOfRange
-            except (ValueError, OutOfRange):
-                print('''There are only {0} free tickets. Please enter a
-                    number between 1 and {0}'''.format(tc))
         t_count = self.reservation_tickets_count
         while t_count > 0:
             try:
                 for i in range(1, t_count+1):
                     ticket = input('Step 4 (Seats): Choose seat {}> '.format(i))
+                    ticket = (int(ticket[1:-1].split(',')[0].strip(
+                        ' ')), int(ticket[1:-1].split(',')[1].strip(' ')))
+
                     if ticket[0] not in range(1, 11) or ticket[1] not in range(1, 11):
                         raise OutOfRange
+                    elif ticket in self.reservation_tickets:
+                        raise EqualTicket
                     else:
-                        self.reservation_tickets.append(ticket)
+                        if ticket in r_seats:
+                            raise SeatTaken
+                        else:
+                            self.reservation_tickets.append(ticket)
+                            t_count -= 1
             except (ValueError, OutOfRange):
-                print('Please insert ticket as rown and column in range 1-10')
+                print('\nPlease insert ticket as rown and column in range 1-10')
+            except SeatTaken:
+                print('\nThis seat is already taken')
+            except EqualTicket:
+                self.reservation_tickets = []
+                t_count = self.reservation_tickets_count
+                print('\nYou have duplicated a previous ticket of yours!!! \n\
+Please try again.\n')
+            except KeyboardInterrupt:
+                self.cancel_reservation()
+                self.con.close()
+                print('\n\nBuy, Buy')
+                quit()
 
+    def finalize_reservation(self):
+        user_actions = ('cancel', 'finalize')
+        user_input = ''
+        while user_input not in user_actions:
+            try:
+                user_input = input("\nStep 5 (Confirm - type 'finalize') > ").lower()
+                if user_input not in user_actions:
+                    raise Finalize
+                elif user_input == 'cancel':
+                    raise Cancel
+                else:
+                    self.insert_reservation_data()
+                    print('Thanks')
+                    break
+            except Finalize:
+                print("\nType 'finalyze' to confirm your reservation or 'cancel' \
+                    delete")
+            except Cancel:
+                self.cancel_reservation()
+                print("\nReservation canceled. Have a nice day")
+                break
+            except KeyboardInterrupt:
+                self.cancel_reservation()
+                self.con.close()
+                print('\n\nBuy, Buy')
+                quit()
+
+    def return_movie_by_id(self, movie_id):
+        cur = self.con.cursor()
+        sql = '''SELECT m.name||" "||m.rating FROM movies m WHERE id=?'''
+        cur.execute(sql, (movie_id, ))
+        result = cur.fetchall()
+        return result
+
+    def return_projection_by_id(self, projection_id):
+        cur = self.con.cursor()
+        sql = '''SELECT p.date||" "||p.time||" "||p.type
+        FROM  projections p WHERE id=?'''
+        cur.execute(sql, (projection_id, ))
+        result = cur.fetchall()
+        return result
+
+    def insert_reservation_data(self):
+        cur = self.con.cursor()
+        sql = '''INSERT INTO reservations (USERNAME, PROJECTION_ID, ROW, COL)
+        VALUES (?, ?, ?, ?)'''
+        r_data = self.assemble_reservation_data()
+        cur.executemany(sql, r_data)
+        self.con.commit()
+
+    def assemble_reservation_data(self):
+        result = []
+        for i in self.reservation_tickets:
+            result.append((self.reservation_user_name, self.reservation_projection_id, i[0], i[1]))
+        return result
 
     def cancel_reservation(self):
-        pass
+        self.reservation_user_name = ''
+        self.reservation_movie_id = 0
+        self.reservation_tickets_count = 0
+        self.reservation_projection_id = 0
+        self.reservation_projection_id = 0
+        self.reservation_tickets = []
+
+    def return_reservation_recap(self):
+        movie = self.return_movie_by_id(self.reservation_movie_id)[0][0]
+        projection = self.return_projection_by_id(
+            self.reservation_projection_id)[0][0]
+        seats = self.reservation_tickets
+        return '\nThis is your reservation:\nMovie: {}\nDate and Time: {}\n\
+Seats: {}'.format(movie, projection, ','.join([str(seat) for seat in seats]))
 
     def exit(self):
-        pass
+        self.cancel_reservation()
+        self.con.close()
+        print('\n\nBuy, Buy')
+        quit()
 
     def help(self):
         pass

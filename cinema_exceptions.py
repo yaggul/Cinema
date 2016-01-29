@@ -17,5 +17,6 @@ class Cancel(Exception):
 class EqualTicket(Exception):
     pass
 
+
 class NoParameter(Exception):
     pass

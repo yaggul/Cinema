@@ -3,8 +3,8 @@ from cli import CLI
 
 
 def main():
-    db = DBinit()
-    console = CLI(db)
+    dbase = DBinit()
+    console = CLI(dbase)
     console.start()
 
 if __name__ == '__main__':

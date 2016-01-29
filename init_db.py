@@ -17,6 +17,27 @@ class DBinit:
         self.reservation_tickets_count = 0
         self.reservation_tickets = []
         self.reservation = True
+        self.help_message = '''List of Supported commands: \n
+\tshow_movies -
+\t\tprints a table with all available movies;
+\tshow_movie_projections <movie_id> [date of projection] -
+\t\tprints a table with all available projections of a specific
+\t\tmovie (you need to give atleast movie_id). Date of projection is optional
+\t\tand must be given in format "YYYY-MM-DD" ;
+\tmake_reservations -
+\t\tcreates ticket reservation. The system will ask you for
+\t\tusername, movie_id, projection_id, and seats
+\t\tand will print out required information to make your choices.
+\t\tYou can cancel your reservation anytime during the process just
+\t\ttype <cancel> at any of the reservation prompts;
+\thelp -
+\t\tprints this help message;
+\texit -
+\t\texits the program.'''
+        self.welcome_message = '''
+Welcome to HackCinema.\n
+Type <help> for list of supported commands.
+'''
 
     def create_tables(self):
         cur = self.con.cursor()
@@ -131,10 +152,7 @@ and parameters')
                 self.reservation = False
                 break
             except KeyboardInterrupt:
-                self.clear_reservation_data()
-                self.con.close()
-                print('\n\nBuy, Buy')
-                quit()
+                self.exit()
 
     def choose_ticket_count(self):
         self.reservation_tickets_count = 0
@@ -154,13 +172,9 @@ and parameters')
                 self.reservation = False
                 break
             except (ValueError, OutOfRange):
-                print('''\nThere are only {0} free tickets. Please enter a
-                    number between 1 and 100''')
+                print('''\n Please enter a number between 1 and 100''')
             except KeyboardInterrupt:
-                self.clear_reservation_data()
-                self.con.close()
-                print('\n\nBuy, Buy')
-                quit()
+                self.exit()
 
     def choose_movie_id(self):
         self.reservation_movie_id = 0
@@ -186,10 +200,7 @@ and parameters')
                 print('\nWe need a number between 1 and {}'.format(
                     self.show_movie_ids()[-1] + 1))
             except KeyboardInterrupt:
-                self.clear_reservation_data()
-                self.con.close()
-                print('\n\nBuy, Buy')
-                quit()
+                self.exit()
 
     def choose_projection_id(self):
         self.reservation_projection_id = 0
@@ -212,10 +223,7 @@ and parameters')
             except (ValueError, OutOfRange):
                 print('\nAllowed choices {}'.format(p_ids))
             except KeyboardInterrupt:
-                self.clear_reservation_data()
-                self.con.slose()
-                print('\n\nBuy, Buy')
-                quit()
+                self.exit()
 
     def show_movie_projections_and_seats(self, movie_id):
         tbl_headers = ['Projection info']
@@ -308,7 +316,7 @@ and parameters')
                 self.reservation = False
                 break
             except (ValueError, OutOfRange):
-                print('\nPlease insert ticket as rown and column in range 1-10')
+                print('\nPlease insert ticket as rown and column in range 1-10 as "(row,column)"')
             except SeatTaken:
                 print('\nThis seat is already taken')
             except EqualTicket:
@@ -317,10 +325,7 @@ and parameters')
                 print('\nYou have duplicated a previous ticket of yours!!! \n\
 Please try again.\n')
             except KeyboardInterrupt:
-                self.clear_reservation_data()
-                self.con.close()
-                print('\n\nBuy, Buy')
-                quit()
+                self.exit()
 
     def finalize_reservation(self):
         user_actions = ('cancel', 'finalize')
@@ -346,10 +351,7 @@ Please try again.\n')
                 self.reservation = False
                 break
             except KeyboardInterrupt:
-                self.clear_reservation_data()
-                self.con.close()
-                print('\n\nBuy, Buy')
-                quit()
+                self.exit()
 
     def return_movie_by_id(self, movie_id):
         cur = self.con.cursor()
@@ -400,8 +402,11 @@ Seats: {}'.format(movie, projection, ','.join([str(seat) for seat in seats]))
     def exit(self):
         self.clear_reservation_data()
         self.con.close()
-        print('\n\nBuy, Buy')
+        print('\nBuy, Buy\n')
         quit()
 
     def help(self):
-        pass
+        print(self.help_message)
+
+    def welcome(self):
+        print(self.welcome_message)

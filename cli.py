@@ -12,6 +12,10 @@ DBinit instance,
 class CLI():
     def __init__(self, *args):
         self.db = args[0]
+        self.wrong_message = '''
+Wrong command or bad parameter.
+Type <help> for list of supported commands and parameters.
+        '''
         self.commands = {
             'show_movies': self.db.show_movies,
             'show_movie_projections': self.db.show_movie_projections,
@@ -21,7 +25,7 @@ class CLI():
 }
 
     def start(self):
-        self.db.welcome()
+        print(self.db.welcome())
         while True:
             try:
                 console_input = input("Enter command > ")
@@ -32,11 +36,11 @@ class CLI():
                 command = text[0]
                 parameter = text[1:]
                 if parameter == []:
-                    self.commands[command]()
+                    print(self.commands[command]())
                 else:
                     # print(command, parameter)
-                    self.commands[command](parameter)
+                    print(self.commands[command](parameter))
             except KeyError:
-                print('Wrong command. Type "help" for list of supported commands')
+                print(self.wrong_message)
 
 

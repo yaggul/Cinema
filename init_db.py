@@ -18,21 +18,21 @@ class DBinit:
         self.reservation_tickets = []
         self.reservation = True
         self.help_message = '''List of Supported commands: \n
-\tshow_movies -
+\tshow_movies:
 \t\tprints a table with all available movies;
-\tshow_movie_projections <movie_id> [date of projection] -
+\tshow_movie_projections <movie_id> [date of projection]:
 \t\tprints a table with all available projections of a specific
 \t\tmovie (you need to give atleast movie_id). Date of projection is optional
 \t\tand must be given in format "YYYY-MM-DD" ;
-\tmake_reservations -
+\tmake_reservations:
 \t\tcreates ticket reservation. The system will ask you for
 \t\tusername, movie_id, projection_id, and seats
 \t\tand will print out required information to make your choices.
 \t\tYou can cancel your reservation anytime during the process just
 \t\ttype <cancel> at any of the reservation prompts;
-\thelp -
+\thelp:
 \t\tprints this help message;
-\texit -
+\texit:
 \t\texits the program.'''
         self.welcome_message = '''
 Welcome to HackCinema.\n
@@ -79,7 +79,7 @@ FOREIGN KEY (MOVIE_ID) REFERENCES MOVIES (ID))
         cur.execute("select * from movies order by rating desc")
         for i in cur.fetchall():
             tbl.add_row(i)
-        print("\nCurrent movies:\n" + str(tbl))
+        return "\nCurrent movies:\n" + str(tbl)
 
     def show_movie_projections(self, *args):
         '''
@@ -103,17 +103,18 @@ FOREIGN KEY (MOVIE_ID) REFERENCES MOVIES (ID))
                 result = cur.fetchall()
                 for i in result:
                     tbl.add_row([i[1], ])
-                print("\nProjections for movie '{}':\n".format(result[0][0]) + str(tbl))
+                return "\nProjections for movie '{}':\n".format(result[0][0]) + str(tbl)
             else:
                 cur.execute(movie_and_date_sql, (int(args[0][0]), args[0][1]))
                 result = cur.fetchall()
                 for i in result:
                     tbl.add_row([i[2], ])
-                print("\nProjections for movie '{}' on date {}:\n".format(
-                    result[0][0], result[0][1]) + str(tbl))
+                return "\nProjections for movie '{}' on date {}:\n".format(
+                    result[0][0], result[0][1]) + str(tbl)
         except (IndexError, KeyError, ValueError):
-            print('\nWrong command. Type help for list of supported commands \
-and parameters')
+            return '''
+Wrong command or bad parameter.
+Type <help> for list of supported commands and parameters.'''
 
     def make_reservations(self):
         self.reservation = True
@@ -124,7 +125,7 @@ and parameters')
             self.choose_ticket_count()
             if not self.reservation:
                 break
-            self.show_movies()
+            print(self.show_movies())
             self.choose_movie_id()
             if not self.reservation:
                 break
@@ -138,6 +139,9 @@ and parameters')
                 break
             print(self.return_reservation_recap())
             self.finalize_reservation()
+            if not self.reservation:
+                break
+        return ''
 
     def choose_user(self):
         self.reservation_user_name = ''
@@ -148,8 +152,8 @@ and parameters')
                     raise Cancel
             except Cancel:
                 self.clear_reservation_data()
-                print("\nReservation canceled. Have a nice day")
                 self.reservation = False
+                print("\nReservation canceled. Have a nice day")
                 break
             except KeyboardInterrupt:
                 self.exit()
@@ -340,6 +344,7 @@ Please try again.\n')
                 else:
                     self.insert_reservation_data()
                     self.clear_reservation_data()
+                    self.reservation = False
                     print('Thanks')
                     break
             except Finalize:
@@ -406,7 +411,7 @@ Seats: {}'.format(movie, projection, ','.join([str(seat) for seat in seats]))
         quit()
 
     def help(self):
-        print(self.help_message)
+        return self.help_message
 
     def welcome(self):
-        print(self.welcome_message)
+        return self.welcome_message
